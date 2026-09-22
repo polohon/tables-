@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#121212">
+<link rel="manifest" href="manifest.json">
+<title>Трекер столов</title>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    font-family: system-ui, -apple-system, sans-serif;
+    background: #121212; color: #fff; margin: 0;
+    padding: 12px; padding-bottom: 90px;
+  }
+  h1 { font-size: 18px; text-align: center; margin: 0 0 8px; color: #eee; }
+  .top-bar {
+    display: flex; justify-content: center; gap: 8px; margin-bottom: 12px;
+  }
+  .top-bar button {
+    background: #2a2a2a; color: #fff; border: none;
+    padding: 8px 14px; border-radius: 8px; font-size: 13px;
+    font-weight: 600; cursor: pointer;
+  }
+  .top-bar button:active { transform: scale(0.97); }
+
+  .tables { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 10px; }
+  .card {
+    background: #1e1e1e; border-radius: 12px; padding: 12px;
+    border-left: 8px solid #555; transition: border-color 0.3s, background 0.3s;
+  }
+  .card.gray   { border-left-color: #555; }
+  .card.green  { border-left-color: #4caf50; }
+  .card.yellow { border-left-color: #ffc107; }
+  .card.red    { border-left-color: #f44336; background: #2a1616; }
+
+  .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .card-header h2 { margin: 0; font-size: 17px; }
+  .del-btn { background: transparent; border: none; color: #f44336; font-size: 20px; cursor: pointer; padding: 4px 8px; border-radius: 6px; }
+
+  .alert {
+    background: #f44336; color: #fff; padding: 6px 10px;
+    border-radius: 6px; font-size: 13px; font-weight: 700;
+    margin: 8px 0; text-align: center;
+    animation: pulse 1.5s infinite;
+  }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.6; } }
+
+  .row { display: flex; justify-content: space-between; font-size: 13px; margin: 4px 0; color: #bbb; }
+  .row b { color: #fff; }
+  .time { font-family: ui-monospace, monospace; color: #4fc3f7; font-weight: 600; }
+
+  .btns { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 8px; }
+  .btns button {
+    padding: 10px 6px; border: none; border-radius: 8px;
+    font-size: 13px; font-weight: 600; cursor: pointer;
+    background: #333; color: #fff;
+  }
+  .btns button:not(:disabled):active { transform: scale(0.97); }
+  .btns button:disabled { opacity: 0.35; cursor: default; }
+  .btns .full { grid-column: 1 / -1; }
+  .btn-arrive { background: #4caf50; }
+  .btn-order  { background: #2196f3; }
+  .btn-serve  { background: #ff9800; }
+  .btn-check  { background: #9c27b0; }
+  .btn-leave  { background: #607d8b; }
+  .btn-reset  { background: #444; }
+
+  .add-bar {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    background: #1a1a1a; border-top: 1px solid #333;
+    padding: 12px; display: flex; gap: 8px; justify-content: center;
+  }
+  .add-bar button {
+    padding: 12px 24px; font-size: 15px; font-weight: 700;
+    border: none; border-radius: 10px;
+    background: #4fc3f7; color: #000; cursor: pointer;
+  }
+  .add-bar button:active { transform: scale(0.97); }
+
+  /* Модальное окно */
+  .modal-bg {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.75);
+    display: none; align-items: center; justify-content: center;
+    z-index: 100; padding: 16px;
+  }
+  .modal-bg.open { display: flex; }
+  .modal {
+    background: #1e1e1e; border-radius: 14px; padding: 18px;
+    width: 100%; max-width: 420px; max-height: 85vh; overflow-y: auto;
+  }
+  .modal h3 { margin: 0 0 14px; font-size: 17px; }
+  .modal label {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 10px 0; border-bottom: 1px solid #2a2a2a; font-size: 14px;
+  }
+  .modal label input {
+    width: 80px; padding: 6px 10px; background: #121212; color: #fff;
+    border: 1px solid #333; border-radius: 6px; font-size: 14px; text-align: right;
+  }
+  .modal-actions { display: flex; gap: 8px; margin-top: 16px; }
+  .modal-actions button {
+    flex: 1; padding: 12px; border: none; border-radius: 8px;
+    font-size: 14px; font-weight: 700; cursor: pointer;
+  }
+  .btn-save { background: #4caf50; color: #fff; }
+  .btn-cancel { background: #444; color: #fff; }
+  .btn-danger { background: #f44336; color: #fff; }
+
+  .stats-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 12px 0;
+  }
+  .stat {
+    background: #121212; border-radius: 10px; padding: 12px; text-align: center;
+  }
+  .stat .num { font-size: 22px; font-weight: 700; color: #4fc3f7; }
+  .stat .lbl { font-size: 11px; color: #888; margin-top: 4px; text-transform: uppercase; }
+  .stats-table { width: 100%; font-size: 12px; border-collapse: collapse; margin-top: 10px; }
+  .stats-table th, .stats-table td {
+    padding: 6px 4px; text-align: left; border-bottom: 1px solid #2a2a2a;
+  }
+  .stats-table th { color: #888; font-weight: 600; }
+  .stats-table td.time { text-align: right; }
+</style>
+</head>
+<body>
+
+<h1>🍽️ Трекер столов</h1>
+<div class="top-bar">
+  <button id="statsBtn">📊 Статистика</button>
+  <button id="settingsBtn">⚙️ Настройки</button>
+  <button id="exportBtn">💾 CSV</button>
+</div>
+
+<div class="tables" id="tables"></div>
+
+<div class="add-bar">
+  <button id="addBtn">➕ Добавить стол</button>
+</div>
+
+<!-- Модалка настроек -->
+<div class="modal-bg" id="settingsModal">
+  <div class="modal">
+    <h3>⚙️ Настройки лимитов (минуты)</h3>
+    <label>Подход к столу после посадки <input type="number" id="lim_approach" min="1"></label>
+    <label>Отдача заказа после принятия <input type="number" id="lim_serve" min="1"></label>
+    <label>1-й подход после выноса <input type="number" id="lim_c1" min="1"></label>
+    <label>2-й подход после 1-го <input type="number" id="lim_c2" min="1"></label>
+    <label>3-й подход после 2-го <input type="number" id="lim_c3" min="1"></label>
+    <div class="modal-actions">
+      <button class="btn-cancel" data-close>Отмена</button>
+      <button class="btn-save" id="saveSettings">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<!-- Модалка статистики -->
+<div class="modal-bg" id="statsModal">
+  <div class="modal">
+    <h3>📊 Статистика смены</h3>
+    <div class="stats-grid" id="statsGrid"></div>
+    <div id="statsDetail"></div>
+    <div class="modal-actions">
+      <button class="btn-danger" id="clearStats">Очистить</button>
+      <button class="btn-cancel" data-close>Закрыть</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const STORAGE_KEY = 'tables_tracker_v3';
+const LIMITS_KEY  = 'tables_limits_v1';
+const LOG_KEY     = 'tables_log_v1';
+
+const DEFAULT_LIMITS = {
+  approach: 5,
+  serve: 7,
+  checkAfterServe: 10,
+  checkAfterCheck1: 20,
+  checkAfterCheck2: 20,
+};
+
+let LIMITS = loadLimits();
+let tables = loadTables();
+let log = loadLog();
+
+function loadLimits() {
+  try {
+    const raw = localStorage.getItem(LIMITS_KEY);
+    if (raw) return { ...DEFAULT_LIMITS, ...JSON.parse(raw) };
+  } catch(e){}
+  return { ...DEFAULT_LIMITS };
+}
+function saveLimits() { localStorage.setItem(LIMITS_KEY, JSON.stringify(LIMITS)); }
+
+function loadTables() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch(e){}
+  return [];
+}
+function saveTables() { localStorage.setItem(STORAGE_KEY, JSON.stringify(tables)); }
+
+function loadLog() {
+  try {
+    const raw = localStorage.getItem(LOG_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch(e){}
+  return [];
+}
+function saveLog() { localStorage.setItem(LOG_KEY, JSON.stringify(log)); }
+
+function nextTableNumber() {
+  if (tables.length === 0) return 1;
+  return Math.max(...tables.map(t => t.num)) + 1;
+}
+function fmt(ms) {
+  if (ms < 0) ms = 0;
+  const s = Math.floor(ms / 1000);
+  const h = String(Math.floor(s / 3600)).padStart(2, '0');
+  const m = String(Math.floor((s % 3600) / 60)).padStart(2, '0');
+  const sec = String(s % 60).padStart(2, '0');
+  return `${h}:${m}:${sec}`;
+}
+function fmtMin(ms) {
+  if (ms == null || ms < 0) return '—';
+  const m = Math.floor(ms / 60000);
+  const s = Math.floor((ms % 60000) / 1000);
+  return `${m}м ${String(s).padStart(2,'0')}с`;
+}
+function fmtTime(ts) {
+  if (!ts) return '—';
+  return new Date(ts).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+}
+
+function getStage(t, now) {
+  if (!t.arrivedAt) return { key: 'empty' };
+  if (t.leftAt) return { key: 'done' };
+
+  if (!t.orderTakenAt) {
+    const deadline = t.arrivedAt + LIMITS.approach * 60000;
+    return { key: 'awaiting_order', label: 'Подойти и принять заказ', deadline, remaining: deadline - now };
+  }
+  if (!t.servedAt) {
+    const deadline = t.orderTakenAt + LIMITS.serve * 60000;
+    return { key: 'awaiting_serve', label: 'Вынести заказ', deadline, remaining: deadline - now };
+  }
+
+  const checks = t.checks || [];
+  const base = t.servedAt;
+  const deadlines = [
+    base + LIMITS.checkAfterServe * 60000,
+    base + (LIMITS.checkAfterServe + LIMITS.checkAfterCheck1) * 60000,
+    base + (LIMITS.checkAfterServe + LIMITS.checkAfterCheck1 + LIMITS.checkAfterCheck2) * 60000,
+  ];
+
+  for (let i = 0; i < 3; i++) {
+    if (!checks[i]) {
+      return {
+        key: 'awaiting_check_' + (i + 1),
+        label: `Подойти к столу (${i + 1}-й раз)`,
+        deadline: deadlines[i],
+        remaining: deadlines[i] - now,
+      };
+    }
+  }
+  return { key: 'waiting_leave', label: 'Гости сидят', deadline: null, remaining: null };
+}
+
+function getCardColor(t, now) {
+  const stage = getStage(t, now);
+  if (['empty','done','waiting_leave'].includes(stage.key)) return 'gray';
+  if (stage.remaining == null) return 'green';
+  if (stage.remaining < 0) return 'red';
+
+  let start;
+  if (stage.key === 'awaiting_order') start = t.arrivedAt;
+  else if (stage.key === 'awaiting_serve') start = t.orderTakenAt;
+  else start = t.servedAt;
+
+  const total = stage.deadline - start;
+  if (total > 0 && stage.remaining / total < 0.2) return 'yellow';
+  return 'green';
+}
+
+function render() {
+  const container = document.getElementById('tables');
+  const now = Date.now();
+  container.innerHTML = '';
+
+  if (tables.length === 0) {
+    container.innerHTML = '<p style="text-align:center;color:#666;">Нет столов. Нажми «Добавить стол».</p>';
+    return;
+  }
+
+  tables.forEach(t => {
+    const stage = getStage(t, now);
+    const color = getCardColor(t, now);
+    const card = document.createElement('div');
+    card.className = 'card ' + color;
+
+    const totalTime = t.arrivedAt ? (t.leftAt || now) - t.arrivedAt : 0;
+    const checks = t.checks || [];
+
+    let alertHtml = '';
+    if (!['empty','done','waiting_leave'].includes(stage.key)) {
+      const overdue = stage.remaining < 0;
+      const txt = overdue
+        ? `⚠️ ПРОСРОЧЕНО: ${stage.label}`
+        : `⏳ ${stage.label} через ${fmt(stage.remaining)}`;
+      alertHtml = `<div class="alert" style="${overdue ? '' : 'background:#ffc107;color:#000;animation:none;'}">${txt}</div>`;
+    }
+
+    card.innerHTML = `
+      <div class="card-header">
+        <h2>Стол №${t.num}</h2>
+        <button class="del-btn" data-act="del">✕</button>
+      </div>
+      ${alertHtml}
+      <div class="row"><span>🟢 Приход:</span><b>${fmtTime(t.arrivedAt)}</b></div>
+      <div class="row"><span>📝 Заказ:</span><b>${fmtTime(t.orderTakenAt)}</b></div>
+      <div class="row"><span>🍽️ Отдан:</span><b>${fmtTime(t.servedAt)}</b></div>
+      ${checks.map((c, i) => `<div class="row"><span>👀 Подход ${i+1}:</span><b>${fmtTime(c)}</b></div>`).join('')}
+      <div class="row"><span>🚪 Ушли:</span><b>${fmtTime(t.leftAt)}</b></div>
+      <div class="row" style="margin-top:6px;border-top:1px solid #333;padding-top:6px;">
+        <b>⏱️ За столом:</b><b class="time">${fmt(totalTime)}</b>
+      </div>
+      <div class="btns">
+        <button class="btn-arrive full" data-act="arrive" ${t.arrivedAt ? 'disabled' : ''}>🟢 Гости пришли</button>
+        <button class="btn-order" data-act="order" ${!t.arrivedAt || t.orderTakenAt ? 'disabled' : ''}>📝 Заказ принят</button>
+        <button class="btn-serve" data-act="serve" ${!t.orderTakenAt || t.servedAt ? 'disabled' : ''}>🍽️ Заказ отдан</button>
+        <button class="btn-check full" data-act="check" ${!t.servedAt || checks.length >= 3 || t.leftAt ? 'disabled' : ''}>
+          👀 Подошёл к столу (${checks.length}/3)
+        </button>
+        <button class="btn-leave full" data-act="leave" ${!t.arrivedAt || t.leftAt ? 'disabled' : ''}>🚪 Гости ушли</button>
+        <button class="btn-reset full" data-act="reset" ${!t.arrivedAt ? 'disabled' : ''}>🔄 Сбросить стол</button>
+      </div>
+    `;
+
+    card.querySelectorAll('button[data-act]').forEach(btn => {
+      btn.onclick = () => handleAction(t.id, btn.dataset.act);
+    });
+
+    container.appendChild(card);
+  });
+}
+
+function handleAction(id, action) {
+  const t = tables.find(x => x.id === id);
+  if (!t) return;
+  const now = Date.now();
+
+  if (action === 'arrive') {
+    Object.assign(t, { arrivedAt: now, orderTakenAt: null, servedAt: null, checks: [], leftAt: null });
+  }
+  else if (action === 'order') t.orderTakenAt = now;
+  else if (action === 'serve') t.servedAt = now;
+  else if (action === 'check') { t.checks = t.checks || []; if (t.checks.length < 3) t.checks.push(now); }
+  else if (action === 'leave') {
+    t.leftAt = now;
+    // Пишем в лог смены
+    log.push({
+      num: t.num,
+      arrivedAt: t.arrivedAt,
+      orderTakenAt: t.orderTakenAt,
+      servedAt: t.servedAt,
+      checks: t.checks || [],
+      leftAt: t.leftAt,
+    });
+    saveLog();
+  }
+  else if (action === 'reset') {
+    if (!confirm(`Сбросить стол №${t.num}?`)) return;
+    Object.assign(t, { arrivedAt: null, orderTakenAt: null, servedAt: null, checks: [], leftAt: null });
+  }
+  else if (action === 'del') {
+    if (!confirm(`Удалить стол №${t.num}?`)) return;
+    tables = tables.filter(x => x.id !== id);
+  }
+
+  saveTables();
+  render();
+}
+
+document.getElementById('addBtn').onclick = () => {
+  const num = prompt('Номер стола:', nextTableNumber());
+  if (num === null) return;
+  const parsed = parseInt(num, 10);
+  if (!parsed || parsed < 1) return alert('Некорректный номер');
+  if (tables.some(t => t.num === parsed)) return alert('Такой стол уже есть');
+  tables.push({
+    id: Date.now() + Math.random().toString(36).slice(2, 6),
+    num: parsed,
+    arrivedAt: null, orderTakenAt: null, servedAt: null, checks: [], leftAt: null,
+  });
+  saveTables();
+  render();
+};
+
+// === НАСТРОЙКИ ===
+const settingsModal = document.getElementById('settingsModal');
+document.getElementById('settingsBtn').onclick = () => {
+  document.getElementById('lim_approach').value = LIMITS.approach;
+  document.getElementById('lim_serve').value = LIMITS.serve;
+  document.getElementById('lim_c1').value = LIMITS.checkAfterServe;
+  document.getElementById('lim_c2').value = LIMITS.checkAfterCheck1;
+  document.getElementById('lim_c3').value = LIMITS.checkAfterCheck2;
+  settingsModal.classList.add('open');
+};
+document.getElementById('saveSettings').onclick = () => {
+  LIMITS.approach = +document.getElementById('lim_approach').value || 5;
+  LIMITS.serve = +document.getElementById('lim_serve').value || 7;
+  LIMITS.checkAfterServe = +document.getElementById('lim_c1').value || 10;
+  LIMITS.checkAfterCheck1 = +document.getElementById('lim_c2').value || 20;
+  LIMITS.checkAfterCheck2 = +document.getElementById('lim_c3').value || 20;
+  saveLimits();
+  settingsModal.classList.remove('open');
+  render();
+};
+
+// === СТАТИСТИКА ===
+const statsModal = document.getElementById('statsModal');
+document.getElementById('statsBtn').onclick = () => {
+  const l = log;
+  const totalGuests = l.length;
+
+  let avgTotal = 0, avgApproach = 0, avgServe = 0;
+  if (totalGuests > 0) {
+    let sumTotal = 0, sumApproach = 0, sumServe = 0, countApproach = 0, countServe = 0;
+    l.forEach(e => {
+      if (e.arrivedAt && e.leftAt) sumTotal += e.leftAt - e.arrivedAt;
+      if (e.arrivedAt && e.orderTakenAt) { sumApproach += e.orderTakenAt - e.arrivedAt; countApproach++; }
+      if (e.orderTakenAt && e.servedAt) { sumServe += e.servedAt - e.orderTakenAt; countServe++; }
+    });
+    avgTotal = sumTotal / totalGuests;
+    avgApproach = countApproach ? sumApproach / countApproach : 0;
+    avgServe = countServe ? sumServe / countServe : 0;
+  }
+
+  document.getElementById('statsGrid').innerHTML = `
+    <div class="stat"><div class="num">${totalGuests}</div><div class="lbl">Гостей обслужено</div></div>
+    <div class="stat"><div class="num">${fmtMin(avgTotal)}</div><div class="lbl">Среднее за столом</div></div>
+    <div class="stat"><div class="num">${fmtMin(avgApproach)}</div><div class="lbl">Средний подход</div></div>
+    <div class="stat"><div class="num">${fmtMin(avgServe)}</div><div class="lbl">Средняя отдача</div></div>
+  `;
+
+  const recent = l.slice(-10).reverse();
+  document.getElementById('statsDetail').innerHTML = recent.length
+    ? `<table class="stats-table">
+        <tr><th>№</th><th>Приход</th><th>Ушли</th><th style="text-align:right">За столом</th></tr>
+        ${recent.map(e => `
+          <tr>
+            <td>${e.num}</td>
+            <td>${fmtTime(e.arrivedAt)}</td>
+            <td>${fmtTime(e.leftAt)}</td>
+            <td class="time">${e.arrivedAt && e.leftAt ? fmt(e.leftAt - e.arrivedAt) : '—'}</td>
+          </tr>
+        `).join('')}
+      </table>`
+    : '<p style="text-align:center;color:#666;font-size:13px;">Пока нет данных</p>';
+
+  statsModal.classList.add('open');
+};
+document.getElementById('clearStats').onclick = () => {
+  if (!confirm('Очистить статистику смены?')) return;
+  log = [];
+  saveLog();
+  statsModal.classList.remove('open');
+};
+
+// === ЭКСПОРТ CSV ===
+document.getElementById('exportBtn').onclick = () => {
+  if (log.length === 0) return alert('Нет данных для экспорта');
+  const rows = [
+    ['Стол','Приход','Заказ принят','Заказ отдан','Подход 1','Подход 2','Подход 3','Ушли','Время за столом (мин)','Подход (мин)','Отдача (мин)']
+  ];
+  log.forEach(e => {
+    const total = e.arrivedAt && e.leftAt ? ((e.leftAt - e.arrivedAt)/60000).toFixed(1) : '';
+    const appr = e.arrivedAt && e.orderTakenAt ? ((e.orderTakenAt - e.arrivedAt)/60000).toFixed(1) : '';
+    const srv = e.orderTakenAt && e.servedAt ? ((e.servedAt - e.orderTakenAt)/60000).toFixed(1) : '';
+    rows.push([
+      e.num,
+      new Date(e.arrivedAt).toLocaleString('ru-RU'),
+      e.orderTakenAt ? new Date(e.orderTakenAt).toLocaleString('ru-RU') : '',
+      e.servedAt ? new Date(e.servedAt).toLocaleString('ru-RU') : '',
+      e.checks[0] ? new Date(e.checks[0]).toLocaleTimeString('ru-RU') : '',
+      e.checks[1] ? new Date(e.checks[1]).toLocaleTimeString('ru-RU') : '',
+      e.checks[2] ? new Date(e.checks[2]).toLocaleTimeString('ru-RU') : '',
+      e.leftAt ? new Date(e.leftAt).toLocaleString('ru-RU') : '',
+      total, appr, srv
+    ]);
+  });
+  const csv = '\uFEFF' + rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `смена_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+};
+
+// Закрытие модалок
+document.querySelectorAll('[data-close]').forEach(btn => {
+  btn.onclick = (e) => e.target.closest('.modal-bg').classList.remove('open');
+});
+document.querySelectorAll('.modal-bg').forEach(bg => {
+  bg.onclick = (e) => { if (e.target === bg) bg.classList.remove('open'); };
+});
+
+// PWA
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+}
+
+render();
+setInterval(render, 1000);
+</script>
+</body>
+</html>
