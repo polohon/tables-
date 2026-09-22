@@ -29,44 +29,46 @@
 
   .tables {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
     gap: 8px;
   }
 
   .card {
     background: #1e1e1e; border-radius: 10px;
     border-left: 5px solid #555;
-    transition: border-color 0.3s, background 0.3s, transform 0.15s;
+    transition: border-color 0.3s, background 0.3s;
     overflow: hidden;
-    position: relative;
   }
   .card.gray   { border-left-color: #555; }
   .card.green  { border-left-color: #4caf50; }
   .card.yellow { border-left-color: #ffc107; }
   .card.red    { border-left-color: #f44336; background: #2a1616; }
 
-  .card.dragging { opacity: 0.4; transform: scale(0.95); }
-  .card.drag-over { border-left-color: #4fc3f7; box-shadow: 0 0 0 2px #4fc3f7 inset; }
-
   .card-head {
     display: flex; align-items: center; gap: 6px;
-    padding: 8px 10px; cursor: pointer;
+    padding: 8px 10px;
   }
   .card-head .num {
-    font-size: 18px; font-weight: 800; color: #fff;
-    min-width: 32px;
+    font-size: 17px; font-weight: 800; color: #fff;
+    min-width: 30px;
   }
   .card-head .status {
-    font-size: 16px; line-height: 1;
+    font-size: 15px; line-height: 1;
   }
   .card-head .timer {
     font-family: ui-monospace, monospace;
-    font-size: 15px; font-weight: 700; color: #4fc3f7;
+    font-size: 14px; font-weight: 700; color: #4fc3f7;
     flex: 1; text-align: right;
   }
+  .card-head .toggle-btn {
+    background: transparent; border: none;
+    color: #4fc3f7; font-size: 14px; cursor: pointer;
+    padding: 2px 4px; border-radius: 4px;
+  }
+  .card-head .toggle-btn:hover { background: rgba(79,195,247,0.15); }
   .card-head .del-btn {
     background: transparent; border: none;
-    color: #f44336; font-size: 16px; cursor: pointer;
+    color: #f44336; font-size: 15px; cursor: pointer;
     padding: 2px 4px; border-radius: 4px;
   }
   .card-head .del-btn:hover { background: rgba(244,67,54,0.15); }
@@ -177,10 +179,10 @@
   .stats-table td.time { text-align: right; }
 
   @media (min-width: 1200px) {
-    .tables { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
+    .tables { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); }
   }
   @media (max-width: 400px) {
-    .tables { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+    .tables { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
   }
 </style>
 </head>
@@ -228,7 +230,7 @@
 </div>
 
 <script>
-const STORAGE_KEY = 'tables_tracker_v4';
+const STORAGE_KEY = 'tables_tracker_v5';
 const LIMITS_KEY  = 'tables_limits_v1';
 const LOG_KEY     = 'tables_log_v1';
 const ORDER_KEY   = 'tables_order_v1';
@@ -402,6 +404,7 @@ function render() {
 
     const totalTime = t.arrivedAt ? (t.leftAt || now) - t.arrivedAt : 0;
     const checks = t.checks || [];
+    const isOpen = openCards.has(t.id);
 
     let hintText = '';
     let hintClass = 'ok';
@@ -429,7 +432,8 @@ function render() {
         <span class="num">№${t.num}</span>
         <span class="status">${getStatusIcon(stage)}</span>
         <span class="timer">${fmt(totalTime)}</span>
-        <button class="del-btn" data-act="del">✕</button>
+        <button class="toggle-btn" data-act="toggle" title="Развернуть/свернуть">${isOpen ? '▲' : '▼'}</button>
+        <button class="del-btn" data-act="del" title="Удалить">✕</button>
       </div>
       <div class="hint ${hintClass}">${hintText}</div>
       <div class="details">
@@ -454,15 +458,6 @@ function render() {
       </div>
     `;
 
-    const head = card.querySelector('.card-head');
-    head.addEventListener('click', (e) => {
-      if (e.target.closest('.del-btn')) return;
-      if (card.dataset.wasDragging === '1') return;
-      if (openCards.has(t.id)) openCards.delete(t.id);
-      else openCards.add(t.id);
-      card.classList.toggle('open');
-    });
-
     card.querySelectorAll('button[data-act]').forEach(btn => {
       btn.onclick = (e) => {
         e.stopPropagation();
@@ -470,105 +465,21 @@ function render() {
       };
     });
 
-    makeDraggable(card, head, t.id);
-
     container.appendChild(card);
   });
-}
-
-let dragSrcId = null;
-
-function makeDraggable(card, handle, id) {
-  let pressTimer = null;
-  let startX = 0, startY = 0;
-  let dragging = false;
-
-  const startDrag = () => {
-    dragging = true;
-    dragSrcId = id;
-    card.dataset.wasDragging = '1';
-    card.classList.add('dragging');
-    if (navigator.vibrate) navigator.vibrate(30);
-  };
-
-  const onDown = (e) => {
-    if (e.target.closest('.del-btn')) return;
-    const touch = e.touches ? e.touches[0] : e;
-    startX = touch.clientX;
-    startY = touch.clientY;
-    dragging = false;
-    card.dataset.wasDragging = '0';
-
-    pressTimer = setTimeout(() => {
-      startDrag();
-    }, 500);
-  };
-
-  const onMove = (e) => {
-    const touch = e.touches ? e.touches[0] : e;
-    const dx = touch.clientX - startX;
-    const dy = touch.clientY - startY;
-
-    if (!dragging && pressTimer) {
-      if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
-        clearTimeout(pressTimer);
-        pressTimer = null;
-        card.dataset.wasDragging = '0';
-      }
-    }
-
-    if (dragging) {
-      if (e.cancelable) e.preventDefault();
-      const elem = document.elementFromPoint(touch.clientX, touch.clientY);
-      const targetCard = elem?.closest('.card');
-      document.querySelectorAll('.card.drag-over').forEach(c => c.classList.remove('drag-over'));
-      if (targetCard && targetCard !== card) {
-        targetCard.classList.add('drag-over');
-      }
-    }
-  };
-
-  const onUp = (e) => {
-    if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; }
-    if (!dragging) return;
-
-    const touch = e.changedTouches ? e.changedTouches[0] : e;
-    const elem = document.elementFromPoint(touch.clientX, touch.clientY);
-    const targetCard = elem?.closest('.card');
-
-    if (targetCard && targetCard !== card) {
-      const targetId = targetCard.dataset.id;
-      const srcIdx = tables.findIndex(t => t.id === dragSrcId);
-      const dstIdx = tables.findIndex(t => t.id === targetId);
-      if (srcIdx !== -1 && dstIdx !== -1) {
-        const [moved] = tables.splice(srcIdx, 1);
-        tables.splice(dstIdx, 0, moved);
-        saveTables();
-        render();
-      }
-    }
-
-    card.classList.remove('dragging');
-    document.querySelectorAll('.card.drag-over').forEach(c => c.classList.remove('drag-over'));
-    dragging = false;
-    dragSrcId = null;
-    setTimeout(() => { card.dataset.wasDragging = '0'; }, 300);
-  };
-
-  handle.addEventListener('touchstart', onDown, { passive: true });
-  handle.addEventListener('touchmove', onMove, { passive: false });
-  handle.addEventListener('touchend', onUp);
-  handle.addEventListener('touchcancel', onUp);
-
-  handle.addEventListener('mousedown', onDown);
-  document.addEventListener('mousemove', (e) => { if (dragging) onMove(e); });
-  document.addEventListener('mouseup', (e) => { if (dragging) onUp(e); });
 }
 
 function handleAction(id, action) {
   const t = tables.find(x => x.id === id);
   if (!t) return;
   const now = Date.now();
+
+  if (action === 'toggle') {
+    if (openCards.has(id)) openCards.delete(id);
+    else openCards.add(id);
+    render();
+    return;
+  }
 
   if (action === 'arrive') {
     Object.assign(t, { arrivedAt: now, orderTakenAt: null, servedAt: null, checks: [], leftAt: null });
@@ -614,7 +525,6 @@ document.getElementById('addBtn').onclick = () => {
     arrivedAt: null, orderTakenAt: null, servedAt: null, checks: [], leftAt: null,
   };
   tables.push(newTable);
-  openCards.add(newTable.id);
   saveTables();
   render();
 };
