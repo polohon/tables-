@@ -44,33 +44,32 @@
   .card.green  { border-left-color: #4caf50; }
   .card.yellow { border-left-color: #ffc107; }
   .card.red    { border-left-color: #f44336; background: #2a1616; }
-  .card.cancelled { opacity: 0.5; border-left-color: #666; }
 
   .card-head {
-    display: flex; align-items: center; gap: 5px;
-    padding: 8px 8px;
+    display: flex; align-items: center; gap: 4px;
+    padding: 7px 8px;
   }
   .card-head .num {
-    font-size: 17px; font-weight: 800; color: #fff;
-    min-width: 34px;
+    font-size: 16px; font-weight: 800; color: #fff;
+    min-width: 32px;
   }
   .card-head .status {
-    font-size: 15px; line-height: 1;
+    font-size: 14px; line-height: 1;
   }
   .card-head .timer {
     font-family: ui-monospace, monospace;
-    font-size: 14px; font-weight: 700; color: #4fc3f7;
+    font-size: 13px; font-weight: 700; color: #4fc3f7;
     flex: 1; text-align: right;
+    padding-right: 2px;
   }
   .card-head .icon-btn {
     background: transparent; border: none;
     font-size: 14px; cursor: pointer;
-    padding: 2px 3px; border-radius: 4px;
+    padding: 2px 4px; border-radius: 4px;
+    line-height: 1;
   }
   .card-head .toggle-btn { color: #4fc3f7; }
   .card-head .toggle-btn:hover { background: rgba(79,195,247,0.15); }
-  .card-head .rename-btn { color: #ffc107; }
-  .card-head .rename-btn:hover { background: rgba(255,193,7,0.15); }
   .card-head .del-btn { color: #f44336; }
   .card-head .del-btn:hover { background: rgba(244,67,54,0.15); }
 
@@ -122,6 +121,7 @@
   .btn-check  { background: #9c27b0; }
   .btn-leave  { background: #607d8b; }
   .btn-undo   { background: #795548; }
+  .btn-rename { background: #ffc107; color: #000; }
   .btn-reset  { background: #444; }
 
   .add-bar {
@@ -179,7 +179,7 @@
   }
   .stats-table th { color: #888; font-weight: 600; }
   .stats-table td.time { text-align: right; }
-  .stats-table tr.cancelled { opacity: 0.5; text-decoration: line-through; }
+  .stats-table tr.cancelled { opacity: 0.45; text-decoration: line-through; }
 </style>
 </head>
 <body>
@@ -226,7 +226,7 @@
 </div>
 
 <script>
-const STORAGE_KEY = 'tables_tracker_v6';
+const STORAGE_KEY = 'tables_tracker_v7';
 const LIMITS_KEY  = 'tables_limits_v1';
 const LOG_KEY     = 'tables_log_v1';
 const ORDER_KEY   = 'tables_order_v1';
@@ -288,7 +288,6 @@ function loadLog() {
 }
 function saveLog() { localStorage.setItem(LOG_KEY, JSON.stringify(log)); }
 
-// Отображение номера с учётом суффикса (штрихи)
 function displayNum(t) {
   return t.num + "'".repeat(t.suffix || 0);
 }
@@ -434,7 +433,6 @@ function render() {
         <span class="num">№${dn}</span>
         <span class="status">${getStatusIcon(stage)}</span>
         <span class="timer">${fmt(totalTime)}</span>
-        <button class="icon-btn rename-btn" data-act="rename" title="Переименовать">✏️</button>
         <button class="icon-btn toggle-btn" data-act="toggle" title="Развернуть">${isOpen ? '▲' : '▼'}</button>
         <button class="icon-btn del-btn" data-act="del" title="Удалить">✕</button>
       </div>
@@ -457,7 +455,8 @@ function render() {
           </button>
           <button class="btn-leave full" data-act="leave" ${!t.arrivedAt || t.leftAt ? 'disabled' : ''}>🚪 Ушли</button>
           <button class="btn-undo full" data-act="undo" ${!canUndo(t) ? 'disabled' : ''}>↩️ Отменить</button>
-          <button class="btn-reset full" data-act="reset" ${!t.arrivedAt ? 'disabled' : ''}>🔄 Сбросить</button>
+          <button class="btn-reset" data-act="reset" ${!t.arrivedAt ? 'disabled' : ''}>🔄 Сбросить</button>
+          <button class="btn-rename" data-act="rename">✏️ Имя</button>
         </div>
       </div>
     `;
@@ -490,13 +489,10 @@ function handleAction(id, action) {
     if (input === null) return;
     const parsed = parseInt(input, 10);
     if (!parsed || parsed < 1) return alert('Некорректный номер');
-    // Проверяем, есть ли стол с таким же номером и суффиксом
     const newNum = parsed;
-    // Ищем максимальный суффикс для этого номера среди других столов
     const others = tables.filter(x => x.id !== id && x.num === newNum);
     let suffix = 0;
     if (others.length > 0) {
-      // Находим максимальный существующий суффикс
       const maxSuffix = Math.max(...others.map(x => x.suffix || 0));
       suffix = maxSuffix + 1;
     }
@@ -518,7 +514,6 @@ function handleAction(id, action) {
   }
   else if (action === 'leave') {
     t.leftAt = now;
-    // Создаём запись в логе
     const entry = {
       id: t.id,
       num: displayNum(t),
@@ -530,15 +525,11 @@ function handleAction(id, action) {
       cancelled: false,
     };
     log.push(entry);
-    // Сохраняем id последней записи в столе, чтобы потом можно было отменить
     t._logEntryId = entry.id + '_' + entry.leftAt;
     saveLog();
   }
   else if (action === 'undo') {
-    // Откат по одному шагу
     if (t.leftAt) {
-      // Отменяем уход
-      // Находим запись в логе и помечаем как отменённую
       const entry = log.find(e =>
         e.id === t.id &&
         e.leftAt === t.leftAt &&
@@ -551,7 +542,6 @@ function handleAction(id, action) {
       t.leftAt = null;
     }
     else if (t.checks && t.checks.length > 0) {
-      // Убираем последний подход
       t.checks.pop();
     }
     else if (t.servedAt) {
@@ -584,7 +574,6 @@ document.getElementById('addBtn').onclick = () => {
   const parsed = parseInt(num, 10);
   if (!parsed || parsed < 1) return alert('Некорректный номер');
 
-  // Проверяем — есть ли уже стол с таким номером
   const others = tables.filter(x => x.num === parsed);
   let suffix = 0;
   if (others.length > 0) {
