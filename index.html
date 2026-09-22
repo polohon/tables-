@@ -513,18 +513,17 @@ function makeDraggable(card, handle, id) {
   };
 
   const onDown = (e) => {
-    if (e.target.closest('.del-btn')) return;
-    const touch = e.touches ? e.touches[0] : e;
-    startX = touch.clientX;
-    startY = touch.clientY;
-    dragging = false;
-    card.dataset.wasDragging = '0';
+  if (e.target.closest('.del-btn')) return;
+  const touch = e.touches ? e.touches[0] : e;
+  startX = touch.clientX;
+  startY = touch.clientY;
+  dragging = false;
+  card.dataset.wasDragging = '0';
 
-    pressTimer = setTimeout(() => {
-      card.dataset.wasDragging = '1';
-      startDrag();
-    }, 350); // долгое нажатие 350мс
-  };
+  pressTimer = setTimeout(() => {
+    startDrag();
+  }, 500); // долгое нажатие 500мс
+};
 
   const onMove = (e) => {
     const touch = e.touches ? e.touches[0] : e;
