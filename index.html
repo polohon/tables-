@@ -11,53 +11,111 @@
   body {
     font-family: system-ui, -apple-system, sans-serif;
     background: #121212; color: #fff; margin: 0;
-    padding: 12px; padding-bottom: 90px;
+    padding: 10px; padding-bottom: 90px;
+    user-select: none; -webkit-user-select: none;
   }
-  h1 { font-size: 18px; text-align: center; margin: 0 0 8px; color: #eee; }
+  h1 { font-size: 16px; text-align: center; margin: 0 0 6px; color: #eee; }
+
   .top-bar {
-    display: flex; justify-content: center; gap: 8px; margin-bottom: 12px;
+    display: flex; justify-content: center; gap: 6px;
+    margin-bottom: 10px; flex-wrap: wrap;
   }
   .top-bar button {
     background: #2a2a2a; color: #fff; border: none;
-    padding: 8px 14px; border-radius: 8px; font-size: 13px;
+    padding: 7px 12px; border-radius: 8px; font-size: 12px;
     font-weight: 600; cursor: pointer;
   }
   .top-bar button:active { transform: scale(0.97); }
 
-  .tables { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 10px; }
+  /* Сетка — компактная и адаптивная */
+  .tables {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 8px;
+  }
+
   .card {
-    background: #1e1e1e; border-radius: 12px; padding: 12px;
-    border-left: 8px solid #555; transition: border-color 0.3s, background 0.3s;
+    background: #1e1e1e; border-radius: 10px;
+    border-left: 5px solid #555;
+    transition: border-color 0.3s, background 0.3s, transform 0.15s;
+    overflow: hidden;
+    position: relative;
   }
   .card.gray   { border-left-color: #555; }
   .card.green  { border-left-color: #4caf50; }
   .card.yellow { border-left-color: #ffc107; }
   .card.red    { border-left-color: #f44336; background: #2a1616; }
 
-  .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-  .card-header h2 { margin: 0; font-size: 17px; }
-  .del-btn { background: transparent; border: none; color: #f44336; font-size: 20px; cursor: pointer; padding: 4px 8px; border-radius: 6px; }
+  .card.dragging { opacity: 0.4; transform: scale(0.95); }
+  .card.drag-over { border-left-color: #4fc3f7; box-shadow: 0 0 0 2px #4fc3f7 inset; }
 
-  .alert {
-    background: #f44336; color: #fff; padding: 6px 10px;
-    border-radius: 6px; font-size: 13px; font-weight: 700;
-    margin: 8px 0; text-align: center;
+  /* Шапка карточки — всегда видна */
+  .card-head {
+    display: flex; align-items: center; gap: 6px;
+    padding: 8px 10px; cursor: pointer;
+  }
+  .card-head .num {
+    font-size: 18px; font-weight: 800; color: #fff;
+    min-width: 32px;
+  }
+  .card-head .status {
+    font-size: 16px; line-height: 1;
+  }
+  .card-head .timer {
+    font-family: ui-monospace, monospace;
+    font-size: 15px; font-weight: 700; color: #4fc3f7;
+    flex: 1; text-align: right;
+  }
+  .card-head .del-btn {
+    background: transparent; border: none;
+    color: #f44336; font-size: 16px; cursor: pointer;
+    padding: 2px 4px; border-radius: 4px;
+  }
+  .card-head .del-btn:hover { background: rgba(244,67,54,0.15); }
+
+  /* Мини-подсказка в свёрнутом виде */
+  .card .hint {
+    padding: 0 10px 8px;
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .card .hint.ok { color: #4caf50; }
+  .card .hint.warn { color: #ffc107; }
+  .card .hint.danger {
+    color: #f44336;
     animation: pulse 1.5s infinite;
   }
-  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.6; } }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
 
-  .row { display: flex; justify-content: space-between; font-size: 13px; margin: 4px 0; color: #bbb; }
-  .row b { color: #fff; }
-  .time { font-family: ui-monospace, monospace; color: #4fc3f7; font-weight: 600; }
+  /* Детали — раскрываются по тапу */
+  .card .details {
+    display: none;
+    padding: 4px 10px 10px;
+    border-top: 1px solid #2a2a2a;
+  }
+  .card.open .details { display: block; }
 
-  .btns { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 8px; }
+  .row {
+    display: flex; justify-content: space-between;
+    font-size: 12px; margin: 3px 0; color: #bbb;
+  }
+  .row b { color: #fff; font-weight: 600; }
+  .row .time { font-family: ui-monospace, monospace; color: #4fc3f7; }
+
+  .btns {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 4px; margin-top: 8px;
+  }
   .btns button {
-    padding: 10px 6px; border: none; border-radius: 8px;
-    font-size: 13px; font-weight: 600; cursor: pointer;
+    padding: 8px 4px; border: none; border-radius: 6px;
+    font-size: 11px; font-weight: 700; cursor: pointer;
     background: #333; color: #fff;
   }
   .btns button:not(:disabled):active { transform: scale(0.97); }
-  .btns button:disabled { opacity: 0.35; cursor: default; }
+  .btns button:disabled { opacity: 0.3; cursor: default; }
   .btns .full { grid-column: 1 / -1; }
   .btn-arrive { background: #4caf50; }
   .btn-order  { background: #2196f3; }
@@ -69,16 +127,17 @@
   .add-bar {
     position: fixed; bottom: 0; left: 0; right: 0;
     background: #1a1a1a; border-top: 1px solid #333;
-    padding: 12px; display: flex; gap: 8px; justify-content: center;
+    padding: 10px; display: flex; gap: 8px; justify-content: center;
+    z-index: 50;
   }
   .add-bar button {
-    padding: 12px 24px; font-size: 15px; font-weight: 700;
+    padding: 10px 20px; font-size: 14px; font-weight: 700;
     border: none; border-radius: 10px;
     background: #4fc3f7; color: #000; cursor: pointer;
   }
   .add-bar button:active { transform: scale(0.97); }
 
-  /* Модальное окно */
+  /* Модалки */
   .modal-bg {
     position: fixed; inset: 0; background: rgba(0,0,0,0.75);
     display: none; align-items: center; justify-content: center;
@@ -113,7 +172,7 @@
   .stat {
     background: #121212; border-radius: 10px; padding: 12px; text-align: center;
   }
-  .stat .num { font-size: 22px; font-weight: 700; color: #4fc3f7; }
+  .stat .num { font-size: 20px; font-weight: 700; color: #4fc3f7; }
   .stat .lbl { font-size: 11px; color: #888; margin-top: 4px; text-transform: uppercase; }
   .stats-table { width: 100%; font-size: 12px; border-collapse: collapse; margin-top: 10px; }
   .stats-table th, .stats-table td {
@@ -121,6 +180,15 @@
   }
   .stats-table th { color: #888; font-weight: 600; }
   .stats-table td.time { text-align: right; }
+
+  /* Очень широкий экран — максимум 8 колонок */
+  @media (min-width: 1200px) {
+    .tables { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
+  }
+  /* Телефон — 2 колонки минимум */
+  @media (max-width: 400px) {
+    .tables { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+  }
 </style>
 </head>
 <body>
@@ -130,6 +198,7 @@
   <button id="statsBtn">📊 Статистика</button>
   <button id="settingsBtn">⚙️ Настройки</button>
   <button id="exportBtn">💾 CSV</button>
+  <button id="collapseBtn">📕 Свернуть все</button>
 </div>
 
 <div class="tables" id="tables"></div>
@@ -138,7 +207,7 @@
   <button id="addBtn">➕ Добавить стол</button>
 </div>
 
-<!-- Модалка настроек -->
+<!-- Настройки -->
 <div class="modal-bg" id="settingsModal">
   <div class="modal">
     <h3>⚙️ Настройки лимитов (минуты)</h3>
@@ -154,7 +223,7 @@
   </div>
 </div>
 
-<!-- Модалка статистики -->
+<!-- Статистика -->
 <div class="modal-bg" id="statsModal">
   <div class="modal">
     <h3>📊 Статистика смены</h3>
@@ -168,9 +237,10 @@
 </div>
 
 <script>
-const STORAGE_KEY = 'tables_tracker_v3';
+const STORAGE_KEY = 'tables_tracker_v4';
 const LIMITS_KEY  = 'tables_limits_v1';
 const LOG_KEY     = 'tables_log_v1';
+const ORDER_KEY   = 'tables_order_v1';
 
 const DEFAULT_LIMITS = {
   approach: 5,
@@ -183,6 +253,7 @@ const DEFAULT_LIMITS = {
 let LIMITS = loadLimits();
 let tables = loadTables();
 let log = loadLog();
+let openCards = new Set(); // какие карточки раскрыты
 
 function loadLimits() {
   try {
@@ -196,11 +267,29 @@ function saveLimits() { localStorage.setItem(LIMITS_KEY, JSON.stringify(LIMITS))
 function loadTables() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw);
+    if (raw) {
+      const arr = JSON.parse(raw);
+      // Применяем сохранённый порядок
+      const order = JSON.parse(localStorage.getItem(ORDER_KEY) || '[]');
+      if (order.length) {
+        arr.sort((a, b) => {
+          const ia = order.indexOf(a.id);
+          const ib = order.indexOf(b.id);
+          if (ia === -1 && ib === -1) return 0;
+          if (ia === -1) return 1;
+          if (ib === -1) return -1;
+          return ia - ib;
+        });
+      }
+      return arr;
+    }
   } catch(e){}
   return [];
 }
-function saveTables() { localStorage.setItem(STORAGE_KEY, JSON.stringify(tables)); }
+function saveTables() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(tables));
+  localStorage.setItem(ORDER_KEY, JSON.stringify(tables.map(t => t.id)));
+}
 
 function loadLog() {
   try {
@@ -223,6 +312,15 @@ function fmt(ms) {
   const sec = String(s % 60).padStart(2, '0');
   return `${h}:${m}:${sec}`;
 }
+function fmtShort(ms) {
+  if (ms == null || ms < 0) return '—';
+  const s = Math.floor(ms / 1000);
+  const m = Math.floor(s / 60);
+  const sec = s % 60;
+  if (m >= 60) return `${Math.floor(m/60)}ч ${m%60}м`;
+  if (m > 0) return `${m}м ${String(sec).padStart(2,'0')}с`;
+  return `${sec}с`;
+}
 function fmtMin(ms) {
   if (ms == null || ms < 0) return '—';
   const m = Math.floor(ms / 60000);
@@ -240,7 +338,7 @@ function getStage(t, now) {
 
   if (!t.orderTakenAt) {
     const deadline = t.arrivedAt + LIMITS.approach * 60000;
-    return { key: 'awaiting_order', label: 'Подойти и принять заказ', deadline, remaining: deadline - now };
+    return { key: 'awaiting_order', label: 'Принять заказ', deadline, remaining: deadline - now };
   }
   if (!t.servedAt) {
     const deadline = t.orderTakenAt + LIMITS.serve * 60000;
@@ -259,13 +357,13 @@ function getStage(t, now) {
     if (!checks[i]) {
       return {
         key: 'awaiting_check_' + (i + 1),
-        label: `Подойти к столу (${i + 1}-й раз)`,
+        label: `Подход ${i + 1}`,
         deadline: deadlines[i],
         remaining: deadlines[i] - now,
       };
     }
   }
-  return { key: 'waiting_leave', label: 'Гости сидят', deadline: null, remaining: null };
+  return { key: 'waiting_leave', label: 'Ждём уход', deadline: null, remaining: null };
 }
 
 function getCardColor(t, now) {
@@ -284,13 +382,24 @@ function getCardColor(t, now) {
   return 'green';
 }
 
+// Иконка статуса
+function getStatusIcon(stage) {
+  if (stage.key === 'empty') return '⚪';
+  if (stage.key === 'done') return '✔️';
+  if (stage.key === 'waiting_leave') return '🪑';
+  if (stage.remaining < 0) return '🔴';
+  if (stage.key === 'awaiting_order') return '📝';
+  if (stage.key === 'awaiting_serve') return '🍽️';
+  return '👀';
+}
+
 function render() {
   const container = document.getElementById('tables');
   const now = Date.now();
   container.innerHTML = '';
 
   if (tables.length === 0) {
-    container.innerHTML = '<p style="text-align:center;color:#666;">Нет столов. Нажми «Добавить стол».</p>';
+    container.innerHTML = '<p style="text-align:center;color:#666;grid-column:1/-1;">Нет столов. Нажми «Добавить стол».</p>';
     return;
   }
 
@@ -299,51 +408,186 @@ function render() {
     const color = getCardColor(t, now);
     const card = document.createElement('div');
     card.className = 'card ' + color;
+    card.dataset.id = t.id;
+    if (openCards.has(t.id)) card.classList.add('open');
 
     const totalTime = t.arrivedAt ? (t.leftAt || now) - t.arrivedAt : 0;
     const checks = t.checks || [];
 
-    let alertHtml = '';
-    if (!['empty','done','waiting_leave'].includes(stage.key)) {
-      const overdue = stage.remaining < 0;
-      const txt = overdue
-        ? `⚠️ ПРОСРОЧЕНО: ${stage.label}`
-        : `⏳ ${stage.label} через ${fmt(stage.remaining)}`;
-      alertHtml = `<div class="alert" style="${overdue ? '' : 'background:#ffc107;color:#000;animation:none;'}">${txt}</div>`;
+    // Текст подсказки под шапкой
+    let hintText = '';
+    let hintClass = 'ok';
+    if (stage.key === 'empty') {
+      hintText = 'Свободен';
+      hintClass = 'ok';
+    } else if (stage.key === 'done') {
+      hintText = 'Гости ушли';
+      hintClass = 'ok';
+    } else if (stage.key === 'waiting_leave') {
+      hintText = 'Гости сидят';
+      hintClass = 'ok';
+    } else if (stage.remaining < 0) {
+      hintText = '⚠️ Просрочено: ' + stage.label;
+      hintClass = 'danger';
+    } else {
+      hintText = `${stage.label} через ${fmtShort(stage.remaining)}`;
+      hintClass = stage.remaining / (stage.deadline - (stage.key === 'awaiting_order' ? t.arrivedAt : stage.key === 'awaiting_serve' ? t.orderTakenAt : t.servedAt)) < 0.2 ? 'warn' : 'ok';
     }
 
     card.innerHTML = `
-      <div class="card-header">
-        <h2>Стол №${t.num}</h2>
+      <div class="card-head">
+        <span class="num">№${t.num}</span>
+        <span class="status">${getStatusIcon(stage)}</span>
+        <span class="timer">${fmt(totalTime)}</span>
         <button class="del-btn" data-act="del">✕</button>
       </div>
-      ${alertHtml}
-      <div class="row"><span>🟢 Приход:</span><b>${fmtTime(t.arrivedAt)}</b></div>
-      <div class="row"><span>📝 Заказ:</span><b>${fmtTime(t.orderTakenAt)}</b></div>
-      <div class="row"><span>🍽️ Отдан:</span><b>${fmtTime(t.servedAt)}</b></div>
-      ${checks.map((c, i) => `<div class="row"><span>👀 Подход ${i+1}:</span><b>${fmtTime(c)}</b></div>`).join('')}
-      <div class="row"><span>🚪 Ушли:</span><b>${fmtTime(t.leftAt)}</b></div>
-      <div class="row" style="margin-top:6px;border-top:1px solid #333;padding-top:6px;">
-        <b>⏱️ За столом:</b><b class="time">${fmt(totalTime)}</b>
-      </div>
-      <div class="btns">
-        <button class="btn-arrive full" data-act="arrive" ${t.arrivedAt ? 'disabled' : ''}>🟢 Гости пришли</button>
-        <button class="btn-order" data-act="order" ${!t.arrivedAt || t.orderTakenAt ? 'disabled' : ''}>📝 Заказ принят</button>
-        <button class="btn-serve" data-act="serve" ${!t.orderTakenAt || t.servedAt ? 'disabled' : ''}>🍽️ Заказ отдан</button>
-        <button class="btn-check full" data-act="check" ${!t.servedAt || checks.length >= 3 || t.leftAt ? 'disabled' : ''}>
-          👀 Подошёл к столу (${checks.length}/3)
-        </button>
-        <button class="btn-leave full" data-act="leave" ${!t.arrivedAt || t.leftAt ? 'disabled' : ''}>🚪 Гости ушли</button>
-        <button class="btn-reset full" data-act="reset" ${!t.arrivedAt ? 'disabled' : ''}>🔄 Сбросить стол</button>
+      <div class="hint ${hintClass}">${hintText}</div>
+      <div class="details">
+        <div class="row"><span>🟢 Приход:</span><b>${fmtTime(t.arrivedAt)}</b></div>
+        <div class="row"><span>📝 Заказ:</span><b>${fmtTime(t.orderTakenAt)}</b></div>
+        <div class="row"><span>🍽️ Отдан:</span><b>${fmtTime(t.servedAt)}</b></div>
+        ${checks.map((c, i) => `<div class="row"><span>👀 Подход ${i+1}:</span><b>${fmtTime(c)}</b></div>`).join('')}
+        <div class="row"><span>🚪 Ушли:</span><b>${fmtTime(t.leftAt)}</b></div>
+        <div class="row" style="margin-top:6px;border-top:1px solid #333;padding-top:6px;">
+          <b>⏱️ За столом:</b><b class="time">${fmt(totalTime)}</b>
+        </div>
+        <div class="btns">
+          <button class="btn-arrive full" data-act="arrive" ${t.arrivedAt ? 'disabled' : ''}>🟢 Пришли</button>
+          <button class="btn-order" data-act="order" ${!t.arrivedAt || t.orderTakenAt ? 'disabled' : ''}>📝 Заказ</button>
+          <button class="btn-serve" data-act="serve" ${!t.orderTakenAt || t.servedAt ? 'disabled' : ''}>🍽️ Отдан</button>
+          <button class="btn-check full" data-act="check" ${!t.servedAt || checks.length >= 3 || t.leftAt ? 'disabled' : ''}>
+            👀 Подошёл (${checks.length}/3)
+          </button>
+          <button class="btn-leave full" data-act="leave" ${!t.arrivedAt || t.leftAt ? 'disabled' : ''}>🚪 Ушли</button>
+          <button class="btn-reset full" data-act="reset" ${!t.arrivedAt ? 'disabled' : ''}>🔄 Сбросить</button>
+        </div>
       </div>
     `;
 
-    card.querySelectorAll('button[data-act]').forEach(btn => {
-      btn.onclick = () => handleAction(t.id, btn.dataset.act);
+    // Тап по шапке = раскрыть/свернуть, если не было drag
+    const head = card.querySelector('.card-head');
+    let touchStartTime = 0;
+    let longPressTimer = null;
+    let isDragging = false;
+
+    head.addEventListener('click', (e) => {
+      if (e.target.closest('.del-btn')) return;
+      if (isDragging) return;
+      // Если долгое нажатие уже сработало — не переключаем
+      if (Date.now() - touchStartTime < 300) {
+        if (openCards.has(t.id)) openCards.delete(t.id);
+        else openCards.add(t.id);
+        card.classList.toggle('open');
+      }
     });
+
+    // Кнопки действий
+    card.querySelectorAll('button[data-act]').forEach(btn => {
+      btn.onclick = (e) => {
+        e.stopPropagation();
+        handleAction(t.id, btn.dataset.act);
+      };
+    });
+
+    // Drag & drop (HTML5, работает и на тач через библиотеки — но мы сделаем через длинное нажатие)
+    makeDraggable(card, head, t.id);
 
     container.appendChild(card);
   });
+}
+
+// ---------- DRAG & DROP ----------
+let dragSrcId = null;
+
+function makeDraggable(card, handle, id) {
+  let pressTimer = null;
+  let startX = 0, startY = 0;
+  let dragging = false;
+  let ghost = null;
+
+  const startDrag = () => {
+    dragging = true;
+    dragSrcId = id;
+    card.classList.add('dragging');
+    if (navigator.vibrate) navigator.vibrate(30);
+  };
+
+  const onDown = (e) => {
+    if (e.target.closest('.del-btn')) return;
+    const touch = e.touches ? e.touches[0] : e;
+    startX = touch.clientX;
+    startY = touch.clientY;
+    dragging = false;
+    card.dataset.wasDragging = '0';
+
+    pressTimer = setTimeout(() => {
+      card.dataset.wasDragging = '1';
+      startDrag();
+    }, 350); // долгое нажатие 350мс
+  };
+
+  const onMove = (e) => {
+    const touch = e.touches ? e.touches[0] : e;
+    const dx = touch.clientX - startX;
+    const dy = touch.clientY - startY;
+
+    // Если сдвинулся до активации drag — отменяем долгое нажатие (значит скролл)
+    if (!dragging && pressTimer) {
+      if (Math.abs(dx) > 8 || Math.abs(dy) > 8) {
+        clearTimeout(pressTimer);
+        pressTimer = null;
+      }
+    }
+
+    if (dragging) {
+      e.preventDefault();
+      // Подсветка цели под пальцем
+      const elem = document.elementFromPoint(touch.clientX, touch.clientY);
+      const targetCard = elem?.closest('.card');
+      document.querySelectorAll('.card.drag-over').forEach(c => c.classList.remove('drag-over'));
+      if (targetCard && targetCard !== card) {
+        targetCard.classList.add('drag-over');
+      }
+    }
+  };
+
+  const onUp = (e) => {
+    if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; }
+    if (!dragging) return;
+
+    const touch = e.changedTouches ? e.changedTouches[0] : e;
+    const elem = document.elementFromPoint(touch.clientX, touch.clientY);
+    const targetCard = elem?.closest('.card');
+
+    if (targetCard && targetCard !== card) {
+      const targetId = targetCard.dataset.id;
+      const srcIdx = tables.findIndex(t => t.id === dragSrcId);
+      const dstIdx = tables.findIndex(t => t.id === targetId);
+      if (srcIdx !== -1 && dstIdx !== -1) {
+        const [moved] = tables.splice(srcIdx, 1);
+        tables.splice(dstIdx, 0, moved);
+        saveTables();
+        render();
+      }
+    }
+
+    card.classList.remove('dragging');
+    document.querySelectorAll('.card.drag-over').forEach(c => c.classList.remove('drag-over'));
+    dragging = false;
+    dragSrcId = null;
+    // Небольшая задержка, чтобы клик не сработал после drop
+    setTimeout(() => { card.dataset.wasDragging = '0'; }, 100);
+  };
+
+  handle.addEventListener('touchstart', onDown, { passive: true });
+  handle.addEventListener('touchmove', onMove, { passive: false });
+  handle.addEventListener('touchend', onUp);
+  handle.addEventListener('touchcancel', onUp);
+
+  // Мышь (для теста на ПК)
+  handle.addEventListener('mousedown', onDown);
+  document.addEventListener('mousemove', (e) => { if (dragging) onMove(e); });
+  document.addEventListener('mouseup', (e) => { if (dragging) onUp(e); });
 }
 
 function handleAction(id, action) {
@@ -359,7 +603,6 @@ function handleAction(id, action) {
   else if (action === 'check') { t.checks = t.checks || []; if (t.checks.length < 3) t.checks.push(now); }
   else if (action === 'leave') {
     t.leftAt = now;
-    // Пишем в лог смены
     log.push({
       num: t.num,
       arrivedAt: t.arrivedAt,
@@ -377,6 +620,7 @@ function handleAction(id, action) {
   else if (action === 'del') {
     if (!confirm(`Удалить стол №${t.num}?`)) return;
     tables = tables.filter(x => x.id !== id);
+    openCards.delete(id);
   }
 
   saveTables();
@@ -389,16 +633,28 @@ document.getElementById('addBtn').onclick = () => {
   const parsed = parseInt(num, 10);
   if (!parsed || parsed < 1) return alert('Некорректный номер');
   if (tables.some(t => t.num === parsed)) return alert('Такой стол уже есть');
-  tables.push({
+  const newTable = {
     id: Date.now() + Math.random().toString(36).slice(2, 6),
     num: parsed,
     arrivedAt: null, orderTakenAt: null, servedAt: null, checks: [], leftAt: null,
-  });
+  };
+  tables.push(newTable);
+  openCards.add(newTable.id); // новая карточка раскрыта
   saveTables();
   render();
 };
 
-// === НАСТРОЙКИ ===
+// Свернуть все
+document.getElementById('collapseBtn').onclick = () => {
+  if (openCards.size > 0) {
+    openCards.clear();
+  } else {
+    tables.forEach(t => openCards.add(t.id));
+  }
+  render();
+};
+
+// Настройки
 const settingsModal = document.getElementById('settingsModal');
 document.getElementById('settingsBtn').onclick = () => {
   document.getElementById('lim_approach').value = LIMITS.approach;
@@ -419,12 +675,11 @@ document.getElementById('saveSettings').onclick = () => {
   render();
 };
 
-// === СТАТИСТИКА ===
+// Статистика
 const statsModal = document.getElementById('statsModal');
 document.getElementById('statsBtn').onclick = () => {
   const l = log;
   const totalGuests = l.length;
-
   let avgTotal = 0, avgApproach = 0, avgServe = 0;
   if (totalGuests > 0) {
     let sumTotal = 0, sumApproach = 0, sumServe = 0, countApproach = 0, countServe = 0;
@@ -437,14 +692,12 @@ document.getElementById('statsBtn').onclick = () => {
     avgApproach = countApproach ? sumApproach / countApproach : 0;
     avgServe = countServe ? sumServe / countServe : 0;
   }
-
   document.getElementById('statsGrid').innerHTML = `
-    <div class="stat"><div class="num">${totalGuests}</div><div class="lbl">Гостей обслужено</div></div>
-    <div class="stat"><div class="num">${fmtMin(avgTotal)}</div><div class="lbl">Среднее за столом</div></div>
-    <div class="stat"><div class="num">${fmtMin(avgApproach)}</div><div class="lbl">Средний подход</div></div>
-    <div class="stat"><div class="num">${fmtMin(avgServe)}</div><div class="lbl">Средняя отдача</div></div>
+    <div class="stat"><div class="num">${totalGuests}</div><div class="lbl">Гостей</div></div>
+    <div class="stat"><div class="num">${fmtMin(avgTotal)}</div><div class="lbl">Средн. за столом</div></div>
+    <div class="stat"><div class="num">${fmtMin(avgApproach)}</div><div class="lbl">Средн. подход</div></div>
+    <div class="stat"><div class="num">${fmtMin(avgServe)}</div><div class="lbl">Средн. отдача</div></div>
   `;
-
   const recent = l.slice(-10).reverse();
   document.getElementById('statsDetail').innerHTML = recent.length
     ? `<table class="stats-table">
@@ -459,7 +712,6 @@ document.getElementById('statsBtn').onclick = () => {
         `).join('')}
       </table>`
     : '<p style="text-align:center;color:#666;font-size:13px;">Пока нет данных</p>';
-
   statsModal.classList.add('open');
 };
 document.getElementById('clearStats').onclick = () => {
@@ -469,7 +721,7 @@ document.getElementById('clearStats').onclick = () => {
   statsModal.classList.remove('open');
 };
 
-// === ЭКСПОРТ CSV ===
+// CSV
 document.getElementById('exportBtn').onclick = () => {
   if (log.length === 0) return alert('Нет данных для экспорта');
   const rows = [
@@ -509,7 +761,6 @@ document.querySelectorAll('.modal-bg').forEach(bg => {
   bg.onclick = (e) => { if (e.target === bg) bg.classList.remove('open'); };
 });
 
-// PWA
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js').catch(() => {});
 }
