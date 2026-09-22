@@ -27,7 +27,6 @@
   }
   .top-bar button:active { transform: scale(0.97); }
 
-  /* Сетка — компактная и адаптивная */
   .tables {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
@@ -49,7 +48,6 @@
   .card.dragging { opacity: 0.4; transform: scale(0.95); }
   .card.drag-over { border-left-color: #4fc3f7; box-shadow: 0 0 0 2px #4fc3f7 inset; }
 
-  /* Шапка карточки — всегда видна */
   .card-head {
     display: flex; align-items: center; gap: 6px;
     padding: 8px 10px; cursor: pointer;
@@ -73,7 +71,6 @@
   }
   .card-head .del-btn:hover { background: rgba(244,67,54,0.15); }
 
-  /* Мини-подсказка в свёрнутом виде */
   .card .hint {
     padding: 0 10px 8px;
     font-size: 11px;
@@ -90,7 +87,6 @@
   }
   @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
 
-  /* Детали — раскрываются по тапу */
   .card .details {
     display: none;
     padding: 4px 10px 10px;
@@ -137,7 +133,6 @@
   }
   .add-bar button:active { transform: scale(0.97); }
 
-  /* Модалки */
   .modal-bg {
     position: fixed; inset: 0; background: rgba(0,0,0,0.75);
     display: none; align-items: center; justify-content: center;
@@ -181,11 +176,9 @@
   .stats-table th { color: #888; font-weight: 600; }
   .stats-table td.time { text-align: right; }
 
-  /* Очень широкий экран — максимум 8 колонок */
   @media (min-width: 1200px) {
     .tables { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
   }
-  /* Телефон — 2 колонки минимум */
   @media (max-width: 400px) {
     .tables { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
   }
@@ -207,7 +200,6 @@
   <button id="addBtn">➕ Добавить стол</button>
 </div>
 
-<!-- Настройки -->
 <div class="modal-bg" id="settingsModal">
   <div class="modal">
     <h3>⚙️ Настройки лимитов (минуты)</h3>
@@ -223,7 +215,6 @@
   </div>
 </div>
 
-<!-- Статистика -->
 <div class="modal-bg" id="statsModal">
   <div class="modal">
     <h3>📊 Статистика смены</h3>
@@ -253,7 +244,7 @@ const DEFAULT_LIMITS = {
 let LIMITS = loadLimits();
 let tables = loadTables();
 let log = loadLog();
-let openCards = new Set(); // какие карточки раскрыты
+let openCards = new Set();
 
 function loadLimits() {
   try {
@@ -269,7 +260,6 @@ function loadTables() {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       const arr = JSON.parse(raw);
-      // Применяем сохранённый порядок
       const order = JSON.parse(localStorage.getItem(ORDER_KEY) || '[]');
       if (order.length) {
         arr.sort((a, b) => {
@@ -382,7 +372,6 @@ function getCardColor(t, now) {
   return 'green';
 }
 
-// Иконка статуса
 function getStatusIcon(stage) {
   if (stage.key === 'empty') return '⚪';
   if (stage.key === 'done') return '✔️';
@@ -414,24 +403,25 @@ function render() {
     const totalTime = t.arrivedAt ? (t.leftAt || now) - t.arrivedAt : 0;
     const checks = t.checks || [];
 
-    // Текст подсказки под шапкой
     let hintText = '';
     let hintClass = 'ok';
     if (stage.key === 'empty') {
       hintText = 'Свободен';
-      hintClass = 'ok';
     } else if (stage.key === 'done') {
       hintText = 'Гости ушли';
-      hintClass = 'ok';
     } else if (stage.key === 'waiting_leave') {
       hintText = 'Гости сидят';
-      hintClass = 'ok';
     } else if (stage.remaining < 0) {
       hintText = '⚠️ Просрочено: ' + stage.label;
       hintClass = 'danger';
     } else {
       hintText = `${stage.label} через ${fmtShort(stage.remaining)}`;
-      hintClass = stage.remaining / (stage.deadline - (stage.key === 'awaiting_order' ? t.arrivedAt : stage.key === 'awaiting_serve' ? t.orderTakenAt : t.servedAt)) < 0.2 ? 'warn' : 'ok';
+      let start;
+      if (stage.key === 'awaiting_order') start = t.arrivedAt;
+      else if (stage.key === 'awaiting_serve') start = t.orderTakenAt;
+      else start = t.servedAt;
+      const total = stage.deadline - start;
+      hintClass = (total > 0 && stage.remaining / total < 0.2) ? 'warn' : 'ok';
     }
 
     card.innerHTML = `
@@ -464,24 +454,15 @@ function render() {
       </div>
     `;
 
-    // Тап по шапке = раскрыть/свернуть, если не было drag
     const head = card.querySelector('.card-head');
-    let touchStartTime = 0;
-    let longPressTimer = null;
-    let isDragging = false;
-
     head.addEventListener('click', (e) => {
       if (e.target.closest('.del-btn')) return;
-      if (isDragging) return;
-      // Если долгое нажатие уже сработало — не переключаем
-      if (Date.now() - touchStartTime < 300) {
-        if (openCards.has(t.id)) openCards.delete(t.id);
-        else openCards.add(t.id);
-        card.classList.toggle('open');
-      }
+      if (card.dataset.wasDragging === '1') return;
+      if (openCards.has(t.id)) openCards.delete(t.id);
+      else openCards.add(t.id);
+      card.classList.toggle('open');
     });
 
-    // Кнопки действий
     card.querySelectorAll('button[data-act]').forEach(btn => {
       btn.onclick = (e) => {
         e.stopPropagation();
@@ -489,58 +470,55 @@ function render() {
       };
     });
 
-    // Drag & drop (HTML5, работает и на тач через библиотеки — но мы сделаем через длинное нажатие)
     makeDraggable(card, head, t.id);
 
     container.appendChild(card);
   });
 }
 
-// ---------- DRAG & DROP ----------
 let dragSrcId = null;
 
 function makeDraggable(card, handle, id) {
   let pressTimer = null;
   let startX = 0, startY = 0;
   let dragging = false;
-  let ghost = null;
 
   const startDrag = () => {
     dragging = true;
     dragSrcId = id;
+    card.dataset.wasDragging = '1';
     card.classList.add('dragging');
     if (navigator.vibrate) navigator.vibrate(30);
   };
 
   const onDown = (e) => {
-  if (e.target.closest('.del-btn')) return;
-  const touch = e.touches ? e.touches[0] : e;
-  startX = touch.clientX;
-  startY = touch.clientY;
-  dragging = false;
-  card.dataset.wasDragging = '0';
+    if (e.target.closest('.del-btn')) return;
+    const touch = e.touches ? e.touches[0] : e;
+    startX = touch.clientX;
+    startY = touch.clientY;
+    dragging = false;
+    card.dataset.wasDragging = '0';
 
-  pressTimer = setTimeout(() => {
-    startDrag();
-  }, 500); // долгое нажатие 500мс
-};
+    pressTimer = setTimeout(() => {
+      startDrag();
+    }, 500);
+  };
 
   const onMove = (e) => {
     const touch = e.touches ? e.touches[0] : e;
     const dx = touch.clientX - startX;
     const dy = touch.clientY - startY;
 
-    // Если сдвинулся до активации drag — отменяем долгое нажатие (значит скролл)
     if (!dragging && pressTimer) {
-      if (Math.abs(dx) > 8 || Math.abs(dy) > 8) {
+      if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
         clearTimeout(pressTimer);
         pressTimer = null;
+        card.dataset.wasDragging = '0';
       }
     }
 
     if (dragging) {
-      e.preventDefault();
-      // Подсветка цели под пальцем
+      if (e.cancelable) e.preventDefault();
       const elem = document.elementFromPoint(touch.clientX, touch.clientY);
       const targetCard = elem?.closest('.card');
       document.querySelectorAll('.card.drag-over').forEach(c => c.classList.remove('drag-over'));
@@ -574,8 +552,7 @@ function makeDraggable(card, handle, id) {
     document.querySelectorAll('.card.drag-over').forEach(c => c.classList.remove('drag-over'));
     dragging = false;
     dragSrcId = null;
-    // Небольшая задержка, чтобы клик не сработал после drop
-    setTimeout(() => { card.dataset.wasDragging = '0'; }, 100);
+    setTimeout(() => { card.dataset.wasDragging = '0'; }, 300);
   };
 
   handle.addEventListener('touchstart', onDown, { passive: true });
@@ -583,7 +560,6 @@ function makeDraggable(card, handle, id) {
   handle.addEventListener('touchend', onUp);
   handle.addEventListener('touchcancel', onUp);
 
-  // Мышь (для теста на ПК)
   handle.addEventListener('mousedown', onDown);
   document.addEventListener('mousemove', (e) => { if (dragging) onMove(e); });
   document.addEventListener('mouseup', (e) => { if (dragging) onUp(e); });
@@ -638,12 +614,11 @@ document.getElementById('addBtn').onclick = () => {
     arrivedAt: null, orderTakenAt: null, servedAt: null, checks: [], leftAt: null,
   };
   tables.push(newTable);
-  openCards.add(newTable.id); // новая карточка раскрыта
+  openCards.add(newTable.id);
   saveTables();
   render();
 };
 
-// Свернуть все
 document.getElementById('collapseBtn').onclick = () => {
   if (openCards.size > 0) {
     openCards.clear();
@@ -653,7 +628,6 @@ document.getElementById('collapseBtn').onclick = () => {
   render();
 };
 
-// Настройки
 const settingsModal = document.getElementById('settingsModal');
 document.getElementById('settingsBtn').onclick = () => {
   document.getElementById('lim_approach').value = LIMITS.approach;
@@ -674,7 +648,6 @@ document.getElementById('saveSettings').onclick = () => {
   render();
 };
 
-// Статистика
 const statsModal = document.getElementById('statsModal');
 document.getElementById('statsBtn').onclick = () => {
   const l = log;
@@ -720,7 +693,6 @@ document.getElementById('clearStats').onclick = () => {
   statsModal.classList.remove('open');
 };
 
-// CSV
 document.getElementById('exportBtn').onclick = () => {
   if (log.length === 0) return alert('Нет данных для экспорта');
   const rows = [
@@ -752,7 +724,6 @@ document.getElementById('exportBtn').onclick = () => {
   URL.revokeObjectURL(url);
 };
 
-// Закрытие модалок
 document.querySelectorAll('[data-close]').forEach(btn => {
   btn.onclick = (e) => e.target.closest('.modal-bg').classList.remove('open');
 });
