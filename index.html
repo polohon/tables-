@@ -31,7 +31,7 @@
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
     gap: 8px;
-   align-items: start;
+    align-items: start;
   }
 
   .card {
@@ -44,14 +44,15 @@
   .card.green  { border-left-color: #4caf50; }
   .card.yellow { border-left-color: #ffc107; }
   .card.red    { border-left-color: #f44336; background: #2a1616; }
+  .card.cancelled { opacity: 0.5; border-left-color: #666; }
 
   .card-head {
-    display: flex; align-items: center; gap: 6px;
-    padding: 8px 10px;
+    display: flex; align-items: center; gap: 5px;
+    padding: 8px 8px;
   }
   .card-head .num {
     font-size: 17px; font-weight: 800; color: #fff;
-    min-width: 30px;
+    min-width: 34px;
   }
   .card-head .status {
     font-size: 15px; line-height: 1;
@@ -61,17 +62,16 @@
     font-size: 14px; font-weight: 700; color: #4fc3f7;
     flex: 1; text-align: right;
   }
-  .card-head .toggle-btn {
+  .card-head .icon-btn {
     background: transparent; border: none;
-    color: #4fc3f7; font-size: 14px; cursor: pointer;
-    padding: 2px 4px; border-radius: 4px;
+    font-size: 14px; cursor: pointer;
+    padding: 2px 3px; border-radius: 4px;
   }
+  .card-head .toggle-btn { color: #4fc3f7; }
   .card-head .toggle-btn:hover { background: rgba(79,195,247,0.15); }
-  .card-head .del-btn {
-    background: transparent; border: none;
-    color: #f44336; font-size: 15px; cursor: pointer;
-    padding: 2px 4px; border-radius: 4px;
-  }
+  .card-head .rename-btn { color: #ffc107; }
+  .card-head .rename-btn:hover { background: rgba(255,193,7,0.15); }
+  .card-head .del-btn { color: #f44336; }
   .card-head .del-btn:hover { background: rgba(244,67,54,0.15); }
 
   .card .hint {
@@ -121,6 +121,7 @@
   .btn-serve  { background: #ff9800; }
   .btn-check  { background: #9c27b0; }
   .btn-leave  { background: #607d8b; }
+  .btn-undo   { background: #795548; }
   .btn-reset  { background: #444; }
 
   .add-bar {
@@ -178,13 +179,7 @@
   }
   .stats-table th { color: #888; font-weight: 600; }
   .stats-table td.time { text-align: right; }
-
-  @media (min-width: 1200px) {
-    .tables { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); }
-  }
-  @media (max-width: 400px) {
-    .tables { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
-  }
+  .stats-table tr.cancelled { opacity: 0.5; text-decoration: line-through; }
 </style>
 </head>
 <body>
@@ -231,7 +226,7 @@
 </div>
 
 <script>
-const STORAGE_KEY = 'tables_tracker_v5';
+const STORAGE_KEY = 'tables_tracker_v6';
 const LIMITS_KEY  = 'tables_limits_v1';
 const LOG_KEY     = 'tables_log_v1';
 const ORDER_KEY   = 'tables_order_v1';
@@ -293,10 +288,11 @@ function loadLog() {
 }
 function saveLog() { localStorage.setItem(LOG_KEY, JSON.stringify(log)); }
 
-function nextTableNumber() {
-  if (tables.length === 0) return 1;
-  return Math.max(...tables.map(t => t.num)) + 1;
+// Отображение номера с учётом суффикса (штрихи)
+function displayNum(t) {
+  return t.num + "'".repeat(t.suffix || 0);
 }
+
 function fmt(ms) {
   if (ms < 0) ms = 0;
   const s = Math.floor(ms / 1000);
@@ -385,6 +381,10 @@ function getStatusIcon(stage) {
   return '👀';
 }
 
+function canUndo(t) {
+  return t.arrivedAt || t.orderTakenAt || t.servedAt || (t.checks && t.checks.length) || t.leftAt;
+}
+
 function render() {
   const container = document.getElementById('tables');
   const now = Date.now();
@@ -406,6 +406,7 @@ function render() {
     const totalTime = t.arrivedAt ? (t.leftAt || now) - t.arrivedAt : 0;
     const checks = t.checks || [];
     const isOpen = openCards.has(t.id);
+    const dn = displayNum(t);
 
     let hintText = '';
     let hintClass = 'ok';
@@ -430,11 +431,12 @@ function render() {
 
     card.innerHTML = `
       <div class="card-head">
-        <span class="num">№${t.num}</span>
+        <span class="num">№${dn}</span>
         <span class="status">${getStatusIcon(stage)}</span>
         <span class="timer">${fmt(totalTime)}</span>
-        <button class="toggle-btn" data-act="toggle" title="Развернуть/свернуть">${isOpen ? '▲' : '▼'}</button>
-        <button class="del-btn" data-act="del" title="Удалить">✕</button>
+        <button class="icon-btn rename-btn" data-act="rename" title="Переименовать">✏️</button>
+        <button class="icon-btn toggle-btn" data-act="toggle" title="Развернуть">${isOpen ? '▲' : '▼'}</button>
+        <button class="icon-btn del-btn" data-act="del" title="Удалить">✕</button>
       </div>
       <div class="hint ${hintClass}">${hintText}</div>
       <div class="details">
@@ -454,6 +456,7 @@ function render() {
             👀 Подошёл (${checks.length}/3)
           </button>
           <button class="btn-leave full" data-act="leave" ${!t.arrivedAt || t.leftAt ? 'disabled' : ''}>🚪 Ушли</button>
+          <button class="btn-undo full" data-act="undo" ${!canUndo(t) ? 'disabled' : ''}>↩️ Отменить</button>
           <button class="btn-reset full" data-act="reset" ${!t.arrivedAt ? 'disabled' : ''}>🔄 Сбросить</button>
         </div>
       </div>
@@ -482,30 +485,91 @@ function handleAction(id, action) {
     return;
   }
 
+  if (action === 'rename') {
+    const input = prompt('Новый номер стола:', t.num);
+    if (input === null) return;
+    const parsed = parseInt(input, 10);
+    if (!parsed || parsed < 1) return alert('Некорректный номер');
+    // Проверяем, есть ли стол с таким же номером и суффиксом
+    const newNum = parsed;
+    // Ищем максимальный суффикс для этого номера среди других столов
+    const others = tables.filter(x => x.id !== id && x.num === newNum);
+    let suffix = 0;
+    if (others.length > 0) {
+      // Находим максимальный существующий суффикс
+      const maxSuffix = Math.max(...others.map(x => x.suffix || 0));
+      suffix = maxSuffix + 1;
+    }
+    t.num = newNum;
+    t.suffix = suffix;
+    saveTables();
+    render();
+    return;
+  }
+
   if (action === 'arrive') {
     Object.assign(t, { arrivedAt: now, orderTakenAt: null, servedAt: null, checks: [], leftAt: null });
   }
   else if (action === 'order') t.orderTakenAt = now;
   else if (action === 'serve') t.servedAt = now;
-  else if (action === 'check') { t.checks = t.checks || []; if (t.checks.length < 3) t.checks.push(now); }
+  else if (action === 'check') {
+    t.checks = t.checks || [];
+    if (t.checks.length < 3) t.checks.push(now);
+  }
   else if (action === 'leave') {
     t.leftAt = now;
-    log.push({
-      num: t.num,
+    // Создаём запись в логе
+    const entry = {
+      id: t.id,
+      num: displayNum(t),
       arrivedAt: t.arrivedAt,
       orderTakenAt: t.orderTakenAt,
       servedAt: t.servedAt,
-      checks: t.checks || [],
+      checks: [...(t.checks || [])],
       leftAt: t.leftAt,
-    });
+      cancelled: false,
+    };
+    log.push(entry);
+    // Сохраняем id последней записи в столе, чтобы потом можно было отменить
+    t._logEntryId = entry.id + '_' + entry.leftAt;
     saveLog();
   }
+  else if (action === 'undo') {
+    // Откат по одному шагу
+    if (t.leftAt) {
+      // Отменяем уход
+      // Находим запись в логе и помечаем как отменённую
+      const entry = log.find(e =>
+        e.id === t.id &&
+        e.leftAt === t.leftAt &&
+        !e.cancelled
+      );
+      if (entry) {
+        entry.cancelled = true;
+        saveLog();
+      }
+      t.leftAt = null;
+    }
+    else if (t.checks && t.checks.length > 0) {
+      // Убираем последний подход
+      t.checks.pop();
+    }
+    else if (t.servedAt) {
+      t.servedAt = null;
+    }
+    else if (t.orderTakenAt) {
+      t.orderTakenAt = null;
+    }
+    else if (t.arrivedAt) {
+      t.arrivedAt = null;
+    }
+  }
   else if (action === 'reset') {
-    if (!confirm(`Сбросить стол №${t.num}?`)) return;
+    if (!confirm(`Сбросить стол №${displayNum(t)}?`)) return;
     Object.assign(t, { arrivedAt: null, orderTakenAt: null, servedAt: null, checks: [], leftAt: null });
   }
   else if (action === 'del') {
-    if (!confirm(`Удалить стол №${t.num}?`)) return;
+    if (!confirm(`Удалить стол №${displayNum(t)}?`)) return;
     tables = tables.filter(x => x.id !== id);
     openCards.delete(id);
   }
@@ -515,15 +579,28 @@ function handleAction(id, action) {
 }
 
 document.getElementById('addBtn').onclick = () => {
-  const num = prompt('Номер стола:', nextTableNumber());
+  const num = prompt('Номер стола:', '');
   if (num === null) return;
   const parsed = parseInt(num, 10);
   if (!parsed || parsed < 1) return alert('Некорректный номер');
-  if (tables.some(t => t.num === parsed)) return alert('Такой стол уже есть');
+
+  // Проверяем — есть ли уже стол с таким номером
+  const others = tables.filter(x => x.num === parsed);
+  let suffix = 0;
+  if (others.length > 0) {
+    const maxSuffix = Math.max(...others.map(x => x.suffix || 0));
+    suffix = maxSuffix + 1;
+  }
+
   const newTable = {
     id: Date.now() + Math.random().toString(36).slice(2, 6),
     num: parsed,
-    arrivedAt: null, orderTakenAt: null, servedAt: null, checks: [], leftAt: null,
+    suffix: suffix,
+    arrivedAt: null,
+    orderTakenAt: null,
+    servedAt: null,
+    checks: [],
+    leftAt: null,
   };
   tables.push(newTable);
   saveTables();
@@ -561,12 +638,14 @@ document.getElementById('saveSettings').onclick = () => {
 
 const statsModal = document.getElementById('statsModal');
 document.getElementById('statsBtn').onclick = () => {
-  const l = log;
-  const totalGuests = l.length;
+  const active = log.filter(e => !e.cancelled);
+  const cancelled = log.filter(e => e.cancelled).length;
+  const totalGuests = active.length;
+
   let avgTotal = 0, avgApproach = 0, avgServe = 0;
   if (totalGuests > 0) {
     let sumTotal = 0, sumApproach = 0, sumServe = 0, countApproach = 0, countServe = 0;
-    l.forEach(e => {
+    active.forEach(e => {
       if (e.arrivedAt && e.leftAt) sumTotal += e.leftAt - e.arrivedAt;
       if (e.arrivedAt && e.orderTakenAt) { sumApproach += e.orderTakenAt - e.arrivedAt; countApproach++; }
       if (e.orderTakenAt && e.servedAt) { sumServe += e.servedAt - e.orderTakenAt; countServe++; }
@@ -575,25 +654,29 @@ document.getElementById('statsBtn').onclick = () => {
     avgApproach = countApproach ? sumApproach / countApproach : 0;
     avgServe = countServe ? sumServe / countServe : 0;
   }
+
   document.getElementById('statsGrid').innerHTML = `
     <div class="stat"><div class="num">${totalGuests}</div><div class="lbl">Гостей</div></div>
     <div class="stat"><div class="num">${fmtMin(avgTotal)}</div><div class="lbl">Средн. за столом</div></div>
     <div class="stat"><div class="num">${fmtMin(avgApproach)}</div><div class="lbl">Средн. подход</div></div>
     <div class="stat"><div class="num">${fmtMin(avgServe)}</div><div class="lbl">Средн. отдача</div></div>
   `;
-  const recent = l.slice(-10).reverse();
+
+  const recent = log.slice(-15).reverse();
   document.getElementById('statsDetail').innerHTML = recent.length
     ? `<table class="stats-table">
-        <tr><th>№</th><th>Приход</th><th>Ушли</th><th style="text-align:right">За столом</th></tr>
+        <tr><th>№</th><th>Приход</th><th>Ушли</th><th style="text-align:right">Время</th></tr>
         ${recent.map(e => `
-          <tr>
+          <tr class="${e.cancelled ? 'cancelled' : ''}">
             <td>${e.num}</td>
             <td>${fmtTime(e.arrivedAt)}</td>
             <td>${fmtTime(e.leftAt)}</td>
             <td class="time">${e.arrivedAt && e.leftAt ? fmt(e.leftAt - e.arrivedAt) : '—'}</td>
           </tr>
         `).join('')}
-      </table>`
+      </table>
+      ${cancelled ? `<p style="color:#888;font-size:12px;margin-top:10px;">Отменённых записей: ${cancelled}</p>` : ''}
+      `
     : '<p style="text-align:center;color:#666;font-size:13px;">Пока нет данных</p>';
   statsModal.classList.add('open');
 };
@@ -607,22 +690,21 @@ document.getElementById('clearStats').onclick = () => {
 document.getElementById('exportBtn').onclick = () => {
   if (log.length === 0) return alert('Нет данных для экспорта');
   const rows = [
-    ['Стол','Приход','Заказ принят','Заказ отдан','Подход 1','Подход 2','Подход 3','Ушли','Время за столом (мин)','Подход (мин)','Отдача (мин)']
+    ['Стол','Приход','Заказ принят','Заказ отдан','Подход 1','Подход 2','Подход 3','Ушли','Время за столом (мин)','Отменено']
   ];
   log.forEach(e => {
     const total = e.arrivedAt && e.leftAt ? ((e.leftAt - e.arrivedAt)/60000).toFixed(1) : '';
-    const appr = e.arrivedAt && e.orderTakenAt ? ((e.orderTakenAt - e.arrivedAt)/60000).toFixed(1) : '';
-    const srv = e.orderTakenAt && e.servedAt ? ((e.servedAt - e.orderTakenAt)/60000).toFixed(1) : '';
     rows.push([
       e.num,
-      new Date(e.arrivedAt).toLocaleString('ru-RU'),
+      e.arrivedAt ? new Date(e.arrivedAt).toLocaleString('ru-RU') : '',
       e.orderTakenAt ? new Date(e.orderTakenAt).toLocaleString('ru-RU') : '',
       e.servedAt ? new Date(e.servedAt).toLocaleString('ru-RU') : '',
       e.checks[0] ? new Date(e.checks[0]).toLocaleTimeString('ru-RU') : '',
       e.checks[1] ? new Date(e.checks[1]).toLocaleTimeString('ru-RU') : '',
       e.checks[2] ? new Date(e.checks[2]).toLocaleTimeString('ru-RU') : '',
       e.leftAt ? new Date(e.leftAt).toLocaleString('ru-RU') : '',
-      total, appr, srv
+      total,
+      e.cancelled ? 'Да' : 'Нет'
     ]);
   });
   const csv = '\uFEFF' + rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
